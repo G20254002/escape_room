@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNQAUR MUSEUM - 탈출 게임</title>
+    <style>
+        /* 이전과 동일한 기본 스타일 */
+        body, html { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #1a1a1a; }
+        #start-screen { display: flex; justify-content: center; align-items: center; text-align: center; height: 100vh; background-color: #000; padding: 20px; box-sizing: border-box; background-image: url('https://storage.googleapis.com/generativeai-downloads/images/dinosaur_museum_entrance.jpeg'); background-size: cover; background-position: center; }
+        .start-container { max-width: 1000px; width: 100%; background-color: rgba(0,0,0,0.5); padding: 40px; border-radius: 10px; }
+        .intro-form form { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .input-group { display: flex; align-items: center; gap: 8px; }
+        .intro-form label { font-size: 1.1em; color: #ccc; }
+        .intro-form input { background-color: #333; border: 1px solid #555; color: #fff; padding: 8px 10px; border-radius: 4px; font-size: 1em; width: 80px; }
+        .intro-form button { background-color: #a52a2a; color: #fff; border: none; padding: 10px 22px; border-radius: 5px; font-size: 1.1em; cursor: pointer; transition: background-color 0.3s; }
+        #game-screen { display: none; color: #e0e0e0; }
+        .game-header { position: sticky; top: 0; left: 0; width: 100%; background-color: rgba(20, 20, 20, 0.9); backdrop-filter: blur(5px); padding: 10px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; z-index: 1000; border-bottom: 1px solid #444; }
+        .player-info { font-size: 0.9em; color: #ccc; }
+        #timer { font-size: 1.8em; font-weight: bold; color: #ffffff; background-color: #4CAF50; padding: 5px 15px; border-radius: 5px; }
+        .stadium-container { max-width: 900px; margin: 20px auto; border: 1px solid #444; border-radius: 10px; overflow: hidden; background-color: #2c2c2c; }
+        .stage { display: none; padding: 25px; }
+        .stage-title { font-size: 2em; color: #ffffff; border-bottom: 2px solid #a52a2a; padding-bottom: 10px; margin-bottom: 15px; }
+        .stage-instruction { color: #ccc; margin-bottom: 20px; text-align: center; }
+        .image-container { position: relative; width: 100%; margin-bottom: 20px; }
+        .stage-image { display: block; width: 100%; height: auto; border-radius: 8px; }
+        .hotspot { position: absolute; width: 40px; height: 40px; background-color: rgba(255, 223, 0, 0.5); border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 50%; cursor: pointer; transition: all 0.3s ease; transform: translate(-50%, -50%); animation: pulse 2s infinite; }
+        .hotspot.solved { background-color: rgba(76, 175, 80, 0.7); border-color: #4CAF50; animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 223, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 223, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 223, 0, 0); } }
+        .exit-puzzle { background-color: #333; border: 1px solid #555; border-left: 5px solid #a52a2a; padding: 20px; margin-top: 30px; border-radius: 5px; text-align: center; }
+        .exit-puzzle h3 { font-size: 1.4em; color: #ffffff; margin-top: 0; }
+        .exit-puzzle p { color: #ccc; }
+        .exit-puzzle input { font-size: 1.5em; padding: 10px; width: 200px; text-align: center; background-color: #222; border: 1px solid #555; color: #fff; border-radius: 4px; margin: 10px 0; }
+        .exit-puzzle button { background-color: #4a90e2; color: white; padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.2em; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background-color: #3a3a3a; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center; }
+        .modal-close { position: absolute; top: 10px; right: 15px; font-size: 2em; line-height: 1; cursor: pointer; color: #aaa; }
+        #modal-title { font-size: 1.8em; color: #a52a2a; margin-top: 0; margin-bottom: 20px; }
+        #modal-game-content { margin-bottom: 25px; user-select: none; }
+        .card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card { width: 100%; height: 80px; background-color: #555; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 2em; color: transparent; transition: all 0.3s; transform-style: preserve-3d; }
+        .card.flipped, .card.matched { background-color: #777; transform: rotateY(180deg); color: #fff; }
+        .dodger-game { position: relative; height: 300px; background-color: #222; border: 2px solid #555; overflow: hidden; }
+        .player { position: absolute; width: 30px; height: 30px; background-color: #4CAF50; border-radius: 50%; bottom: 10px; }
+        .obstacle { position: absolute; width: 20px; height: 20px; background-color: #d9534f; top: -20px; }
+        
+        /* <<< 핵심 수정 1: 단서 확인용 스타일 추가 */
+        .clue-display {
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .clue-display p {
+            font-size: 1.1em;
+            color: #ccc;
+            margin: 0 0 10px 0;
+        }
+        .clue-display strong {
+            font-size: 1.5em;
+            color: #ffdd00;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HTML 구조는 변경 없음 -->
+    <div id="start-screen">
+        <div class="start-container">
+            <div class="intro-form">
+                <form id="start-form">
+                    <div class="input-group"><label for="grade">학년</label><input type="text" id="grade" name="grade" required></div>
+                    <div class="input-group"><label for="class">반</label><input type="text" id="class" name="class" required></div>
+                    <div class="input-group"><label for="name">이름</label><input type="text" id="name" name="name" style="width: 80px;" required></div>
+                    <button type="submit">입장하기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="game-screen">
+        <header class="game-header">
+            <div class="player-info">
+                <span id="player-grade"></span>학년 
+                <span id="player-class"></span>반 
+                <span id="player-name"></span>
+            </div>
+            <div id="timer">00:00</div>
+        </header>
+        <div class="stadium-container">
+            <div class="stage" id="stage-1">
+                <h2 class="stage-title">1단계: 중앙 홀</h2>
+                <p class="stage-instruction">이미지 속 빛나는 오브젝트를 클릭하여 미니게임을 해결하세요.</p>
+                <div class="image-container">
+                    <img src="dinosaur_museum_1.jpg" alt="중앙 홀" class="stage-image">
+                    <div class="hotspot" id="hotspot-game1-1" style="top: 85%; left: 20%;" onclick="openModal('game1-1')"></div>
+                    <div class="hotspot" id="hotspot-game1-2" style="top: 88%; left: 75%;" onclick="openModal('game1-2')"></div>
+                    <div class="hotspot" id="hotspot-game1-3" style="top: 20%; left: 50%;" onclick="openModal('game1-3')"></div>
+                    <div class="hotspot" id="hotspot-game1-4" style="top: 65%; left: 8%;" onclick="openModal('game1-4')"></div>
+                </div>
+                <div class="exit-puzzle">
+                    <h3>연구실 출입문</h3>
+                    <p>모든 단서를 조합하여 4자리 비밀번호를 입력하세요.</p>
+                    <input type="text" id="exit-input-1" placeholder="####" maxlength="4">
+                    <button onclick="attemptExit(1)">잠금 해제</button>
+                </div>
+            </div>
+            <div class="stage" id="stage-2">
+                <h2 class="stage-title">2단계: 화석 연구실</h2>
+                <p class="stage-instruction">어지러운 연구실을 조사하여 박사의 흔적을 찾으세요.</p>
+                <div class="image-container">
+                    <img src="dinosaur_lab.jpg" alt="화석 연구실" class="stage-image">
+                    <div class="hotspot" id="hotspot-game2-1" style="top: 30%; left: 80%;" onclick="openModal('game2-1')"></div>
+                    <div class="hotspot" id="hotspot-game2-2" style="top: 75%; left: 25%;" onclick="openModal('game2-2')"></div>
+                    <div class="hotspot" id="hotspot-game2-3" style="top: 60%; left: 55%;" onclick="openModal('game2-3')"></div>
+                    <div class="hotspot" id="hotspot-game2-4" style="top: 50%; left: 85%;" onclick="openModal('game2-4')"></div>
+                </div>
+                <div class="exit-puzzle">
+                    <h3>익룡관 비상문</h3>
+                    <p>컴퓨터에 박사가 숨겨둔 마지막 단어를 입력하세요.</p>
+                    <input type="text" id="exit-input-2" placeholder="단어 입력">
+                    <button onclick="attemptExit(2)">접속</button>
+                </div>
+            </div>
+            <div class="stage" id="stage-3">
+                <h2 class="stage-title">3단계: 익룡관</h2>
+                <p class="stage-instruction">하늘을 나는 파충류들 사이에서 마지막 탈출구를 찾으세요.</p>
+                <div class="image-container">
+                    <img src="pterosaur_hall.jpg" alt="익룡관" class="stage-image">
+                    <div class="hotspot" id="hotspot-game3-1" style="top: 50%; left: 10%;" onclick="openModal('game3-1')"></div>
+                    <div class="hotspot" id="hotspot-game3-2" style="top: 55%; left: 90%;" onclick="openModal('game3-2')"></div>
+                    <div class="hotspot" id="hotspot-game3-3" style="top: 25%; left: 50%;" onclick="openModal('game3-3')"></div>
+                    <div class="hotspot" id="hotspot-game3-4" style="top: 80%; left: 50%;" onclick="openModal('game3-4')"></div>
+                </div>
+                <div class="exit-puzzle">
+                    <h3>박물관 비상 탈출구</h3>
+                    <p>모든 단서를 조합하여 탈출 암호를 입력하세요.</p>
+                    <input type="text" id="exit-input-3" placeholder="암호 입력">
+                    <button onclick="attemptExit(3)">탈출</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="mini-game-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">×</span>
+            <h2 id="modal-title"></h2>
+            <div id="modal-game-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 게임 상태 관리 변수 ---
+        let currentStage = 1;
+        let timerInterval = null;
+        let gameInterval = null;
+        const totalStages = 3;
+        const stageSolutions = { 1: '4725', 2: 'RESEARCH', 3: 'EXIT' };
+
+        const originalQuizPool = [
+            { question: "세상에서 가장 뜨거운 과일은?", answer: "천도복숭아" },
+            { question: "왕이 넘어지면 뭐가 될까?", answer: "킹콩" },
+            { question: "세상에서 가장 착한 사자는?", answer: "자원봉사자" },
+            { question: "세상에서 가장 지루한 중학교는?", answer: "로딩중" },
+            { question: "자동차를 톡하고 치면?", answer: "카톡" },
+            { question: "사람의 몸무게가 가장 많이 나갈 때는?", answer: "철들때" }
+        ];
+        let quizPool = [...originalQuizPool];
+
+        // --- 재사용할 미니게임 함수들 (변경 없음) ---
+        function setupCardGame(gameId) {
+            const content = document.getElementById('modal-game-content');
+            const symbols = ['🦴', '🦴', '🥚', '🥚', '🌿', '🌿', '🌋', '🌋'].sort(() => 0.5 - Math.random());
+            let flippedCards = [];
+            let matchedPairs = 0;
+            content.innerHTML = '<div class="card-grid"></div>';
+            const grid = content.querySelector('.card-grid');
+            symbols.forEach(symbol => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.symbol = symbol;
+                card.textContent = symbol;
+                grid.appendChild(card);
+                card.addEventListener('click', () => {
+                    if (flippedCards.length < 2 && !card.classList.contains('flipped')) {
+                        card.classList.add('flipped');
+                        flippedCards.push(card);
+                        if (flippedCards.length === 2) {
+                            setTimeout(() => {
+                                if (flippedCards[0].dataset.symbol === flippedCards[1].dataset.symbol) {
+                                    flippedCards.forEach(c => c.classList.add('matched'));
+                                    matchedPairs++;
+                                    if (matchedPairs === symbols.length / 2) winGame(gameId);
+                                } else {
+                                    flippedCards.forEach(c => c.classList.remove('flipped'));
+                                }
+                                flippedCards = [];
+                            }, 1000);
+                        }
+                    }
+                });
+            });
+        }
+        function setupRPSGame(gameId) {
+            const content = document.getElementById('modal-game-content');
+            content.innerHTML = `
+                <p>컴퓨터를 상대로 가위바위보에서 승리하세요!</p>
+                <button>가위 ✌️</button> <button>바위 ✊</button> <button>보 🖐️</button>
+                <p id="rps-result"></p>
+            `;
+            const buttons = content.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const choices = ['가위', '바위', '보'];
+                    const userChoice = button.textContent.split(' ')[0];
+                    const computerChoice = choices[Math.floor(Math.random() * 3)];
+                    const resultEl = document.getElementById('rps-result');
+                    let resultText = `사용자: ${userChoice}, 컴퓨터: ${computerChoice}. `;
+                    if (userChoice === computerChoice) {
+                        resultText += '비겼습니다. 다시 하세요!';
+                    } else if (
+                        (userChoice === '가위' && computerChoice === '보') ||
+                        (userChoice === '바위' && computerChoice === '가위') ||
+                        (userChoice === '보' && computerChoice === '바위')
+                    ) {
+                        resultText += '이겼습니다!';
+                        winGame(gameId);
+                    } else {
+                        resultText += '졌습니다. 다시 도전하세요!';
+                    }
+                    resultEl.textContent = resultText;
+                });
+            });
+        }
+        function setupQuizGame(gameId) {
+            if (quizPool.length === 0) {
+                quizPool = [...originalQuizPool];
+            }
+            const randomIndex = Math.floor(Math.random() * quizPool.length);
+            const selectedQuiz = quizPool.splice(randomIndex, 1)[0];
+            const content = document.getElementById('modal-game-content');
+            content.innerHTML = `
+                <p>문제: ${selectedQuiz.question}</p>
+                <input type="text" id="quiz-input" placeholder="정답 입력">
+                <button>확인</button>
+            `;
+            content.querySelector('button').addEventListener('click', () => {
+                const answer = content.querySelector('input').value;
+                if (answer.includes(selectedQuiz.answer)) {
+                    winGame(gameId);
+                } else {
+                    alert('틀렸습니다!');
+                }
+            });
+        }
+        function setupDodgerGame(gameId) {
+            const content = document.getElementById('modal-game-content');
+            content.innerHTML = `<p>10초 동안 운석을 피하세요!</p><div class="dodger-game"><div class="player"></div></div>`;
+            const gameArea = content.querySelector('.dodger-game');
+            const player = content.querySelector('.player');
+            let survivalTime = 0;
+            let obstacleIntervals = [];
+            const stopAllIntervals = () => {
+                clearInterval(gameInterval);
+                obstacleIntervals.forEach(clearInterval);
+                gameInterval = null;
+            };
+            gameArea.addEventListener('mousemove', e => {
+                const rect = gameArea.getBoundingClientRect();
+                let x = e.clientX - rect.left - (player.offsetWidth / 2);
+                x = Math.max(0, Math.min(x, gameArea.offsetWidth - player.offsetWidth));
+                player.style.left = x + 'px';
+            });
+            gameInterval = setInterval(() => {
+                const obstacle = document.createElement('div');
+                obstacle.classList.add('obstacle');
+                obstacle.style.left = Math.random() * (gameArea.offsetWidth - 20) + 'px';
+                gameArea.appendChild(obstacle);
+                let obstacleInterval = setInterval(() => {
+                    if (!gameInterval) {
+                        clearInterval(obstacleInterval);
+                        obstacle.remove();
+                        return;
+                    }
+                    const top = obstacle.offsetTop;
+                    if (top > gameArea.offsetHeight) {
+                        obstacle.remove();
+                        clearInterval(obstacleInterval);
+                    } else {
+                        obstacle.style.top = top + 5 + 'px';
+                        const pRect = player.getBoundingClientRect();
+                        const oRect = obstacle.getBoundingClientRect();
+                        if (!(pRect.right < oRect.left || pRect.left > oRect.right || pRect.bottom < oRect.top || pRect.top > oRect.bottom)) {
+                            stopAllIntervals();
+                            alert('충돌! 다시 도전하세요.');
+                            closeModal(); 
+                        }
+                    }
+                }, 20);
+                obstacleIntervals.push(obstacleInterval);
+                survivalTime++;
+                if (survivalTime >= 10) {
+                    stopAllIntervals();
+                    winGame(gameId);
+                }
+            }, 1000);
+        }
+
+        // --- 미니게임 데이터 객체 (변경 없음) ---
+        const miniGames = {
+            'game1-1': { title: '카드 뒤집기', clue: '획득한 단서: [첫 번째 숫자: 4]', solved: false, setupFunction: setupCardGame },
+            'game1-2': { title: '가위바위보', clue: '획득한 단서: [두 번째 숫자: 7]', solved: false, setupFunction: setupRPSGame },
+            'game1-3': { title: '넌센스 퀴즈', type: 'quiz', clue: '획득한 단서: [세 번째 숫자: 2]', solved: false, setupFunction: setupQuizGame },
+            'game1-4': { title: '운석 피하기', clue: '획득한 단서: [네 번째 숫자: 5]', solved: false, setupFunction: setupDodgerGame },
+            'game2-1': { title: '넌센스 퀴즈', type: 'quiz', clue: '획득한 단서: [글자: R, E]', solved: false, setupFunction: setupQuizGame },
+            'game2-2': { title: '카드 뒤집기', clue: '획득한 단서: [글자: S, E]', solved: false, setupFunction: setupCardGame },
+            'game2-3': { title: '운석 피하기', clue: '획득한 단서: [글자: A, R]', solved: false, setupFunction: setupDodgerGame },
+            'game2-4': { title: '가위바위보', clue: '획득한 단서: [글자: C, H]', solved: false, setupFunction: setupRPSGame },
+            'game3-1': { title: '가위바위보', clue: '획득한 단서: [첫 글자: E]', solved: false, setupFunction: setupRPSGame },
+            'game3-2': { title: '운석 피하기', clue: '획득한 단서: [두 번째 글자: X]', solved: false, setupFunction: setupDodgerGame },
+            'game3-3': { title: '카드 뒤집기', clue: '획득한 단서: [세 번째 글자: I]', solved: false, setupFunction: setupCardGame },
+            'game3-4': { title: '넌센스 퀴즈', type: 'quiz', clue: '획득한 단서: [마지막 글자: T]', solved: false, setupFunction: setupQuizGame },
+        };
+
+        // --- 나머지 JavaScript 로직 ---
+        document.getElementById('start-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const grade = document.getElementById('grade').value;
+            const className = document.getElementById('class').value;
+            const name = document.getElementById('name').value;
+            document.getElementById('player-grade').textContent = grade;
+            document.getElementById('player-class').textContent = className;
+            document.getElementById('player-name').textContent = name;
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('stage-1').style.display = 'block';
+            startTimer(); 
+        });
+
+        const modal = document.getElementById('mini-game-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const gameContent = document.getElementById('modal-game-content');
+
+        // <<< 핵심 수정 2: openModal 함수 로직 변경
+        function openModal(gameId) {
+            const gameData = miniGames[gameId];
+            
+            if (gameData.solved) {
+                // 이미 해결한 문제일 경우, 단서를 보여주는 모달을 띄움
+                modalTitle.textContent = gameData.title + " - 단서 확인";
+                gameContent.innerHTML = `
+                    <div class="clue-display">
+                        <p>이곳에서 다음 단서를 발견했습니다:</p>
+                        <strong>${gameData.clue}</strong>
+                    </div>
+                `;
+            } else {
+                // 해결하지 않은 문제일 경우, 미니게임을 실행
+                modalTitle.textContent = gameData.title;
+                gameData.setupFunction(gameId);
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            if (gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            modal.style.display = 'none';
+            gameContent.innerHTML = '';
+        }
+
+        function winGame(gameId) {
+            const gameData = miniGames[gameId];
+            if (!gameData.solved) {
+                setTimeout(() => {
+                    // 넌센스 퀴즈는 단서 없이 성공 메시지만 보여줌
+                    if (gameData.type === 'quiz') {
+                        alert('정답입니다!');
+                    } else {
+                        alert(gameData.clue);
+                    }
+                    gameData.solved = true;
+                    document.getElementById('hotspot-' + gameId).classList.add('solved');
+                    closeModal();
+                }, 100);
+            }
+        }
+
+        function attemptExit(stageNum) {
+            if (stageNum !== currentStage) return;
+            if (!areAllGamesSolved(stageNum)) {
+                alert('아직 모든 단서를 찾지 못했습니다. 주변을 더 탐색해보세요!');
+                return;
+            }
+            const userInput = document.getElementById('exit-input-' + stageNum).value;
+            const solution = stageSolutions[stageNum];
+            if (userInput.toUpperCase() === solution.toUpperCase()) {
+                alert('정답입니다! 문이 열립니다.');
+                document.getElementById('stage-' + currentStage).style.display = 'none';
+                currentStage++;
+                if (currentStage > totalStages) {
+                    clearInterval(timerInterval);
+                    const finalTime = document.getElementById('timer').textContent;
+                    alert(`축하합니다! 모든 단계를 클리어하고 탈출에 성공했습니다!\n\n최종 기록: ${finalTime}`);
+                    document.getElementById('timer').textContent = "탈출 성공!";
+                } else {
+                    document.getElementById('stage-' + currentStage).style.display = 'block';
+                }
+            } else {
+                alert('틀렸습니다. 단서들을 다시 조합해보세요.');
+            }
+        }
+
+        function areAllGamesSolved(stageNum) {
+            for (const gameId in miniGames) {
+                if (gameId.startsWith('game' + stageNum)) {
+                    if (!miniGames[gameId].solved) return false;
+                }
+            }
+            return true;
+        }
+
+        function startTimer() {
+            let timer = 0;
+            const timerDisplay = document.getElementById('timer');
+            timerInterval = setInterval(() => {
+                timer++;
+                let minutes = Math.floor(timer / 60);
+                let seconds = timer % 60;
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                timerDisplay.textContent = minutes + ":" + seconds;
+            }, 1000);
+        }
+    </script>
+
+</body>
+</html>
